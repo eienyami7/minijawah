@@ -16,6 +16,7 @@ DISCORD_URL = "https://discord.com/invite/h3yWGf3"
 TWITTER_URL = "https://twitter.com/JawahTV"
 YOUTUBE_URL = "https://www.youtube.com/channel/UC0Uui0gxffT5p8HTqUp1e1g"
 
+
 class Bot(commands.Bot):
     def __init__(self):
         super().__init__(token=AUTH_TOKEN, prefix=prefix, initial_channels=initial_channels)
