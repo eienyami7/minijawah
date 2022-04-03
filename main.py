@@ -23,7 +23,8 @@ TWITTER_URL = "https://twitter.com/JawahTV"
 YOUTUBE_URL = "https://www.youtube.com/channel/UC0Uui0gxffT5p8HTqUp1e1g"
 COMMAND_TIME_COOLDOWN = 5
 
-github = Github(os.environ["GIT_TOKEN"].strip())
+# github = Github(os.environ["GIT_TOKEN"].strip())
+github = Github("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")
 repository = github.get_user().get_repo('minijawah')
 
 
