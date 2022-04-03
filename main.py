@@ -23,7 +23,7 @@ TWITTER_URL = "https://twitter.com/JawahTV"
 YOUTUBE_URL = "https://www.youtube.com/channel/UC0Uui0gxffT5p8HTqUp1e1g"
 COMMAND_TIME_COOLDOWN = 5
 
-github = Github(os.environ["GIT_TOKEN"])
+github = Github(os.environ["GIT_TOKEN"].strip())
 repository = github.get_user().get_repo('minijawah')
 
 
@@ -31,6 +31,8 @@ class Bot(commands.Bot):
     def __init__(self):
         super().__init__(token=AUTH_TOKEN, prefix=prefix, initial_channels=initial_channels)
         self.last_invocation_time = dict()
+        with open('trusted.txt', 'r', encoding='utf-8') as f:
+            self.trusted_members = f.read().split("\n")
 
     async def event_ready(self):
         print(f'Logged in as | {self.nick}')
@@ -56,56 +58,63 @@ class Bot(commands.Bot):
 
     @commands.command(name="lookjake")
     async def lookjake(self, ctx: commands.Context):
-        is_on_cooldown = self.cooldown_checker("lookjake")
-        if is_on_cooldown:
-            await ctx.send(is_on_cooldown)
-        randomizer = random.randint(1, 5)
-        if randomizer == 5:
-            response_string = "Shut up @" + ctx.author.name
-        elif randomizer % 2 == 0:
-            response_string = 'It is Luna but with pirate hat!'
-        elif randomizer % 2 == 1:
-            response_string = 'IODabs'
-        await ctx.send(response_string)
+        if ctx.author.name in self.trusted_members:
+            is_on_cooldown = self.cooldown_checker("lookjake")
+            if is_on_cooldown:
+                response_string = is_on_cooldown
+            else:
+                randomizer = random.randint(1, 5)
+                if randomizer == 5:
+                    response_string = "Shut up @" + ctx.author.name
+                elif randomizer % 2 == 0:
+                    response_string = 'It is Luna but with pirate hat!'
+                elif randomizer % 2 == 1:
+                    response_string = 'IODabs'
+            await ctx.send(response_string)
 
     @commands.command(name="bed")
     async def bed(self, ctx: commands.Context):
-        is_on_cooldown = self.cooldown_checker("bed")
-        if is_on_cooldown:
-            await ctx.send(is_on_cooldown)
-        randomizer = random.randint(1, 5)
-        message = str(ctx.message.content)
-        if len(message.split(" ")) == 1:
-            response_string = "Go to bed Roger!"
-        else:
-            if randomizer == 5:
-                response_string = "How about you go to bed @" + ctx.author.name
+        if ctx.author.name in self.trusted_members:
+            is_on_cooldown = self.cooldown_checker("bed")
+            if is_on_cooldown:
+                await ctx.send(is_on_cooldown)
             else:
-                response_string = "Go to bed " + message.split(' ', 1)[1]
-        await ctx.send(response_string)
+                randomizer = random.randint(1, 5)
+                message = str(ctx.message.content)
+                if len(message.split(" ")) == 1:
+                    response_string = "Go to bed Roger!"
+                else:
+                    if randomizer == 5:
+                        response_string = "How about you go to bed @" + ctx.author.name
+                    else:
+                        response_string = "Go to bed " + message.split(' ', 1)[1]
+                await ctx.send(response_string)
 
     @commands.command(name="discord")
     async def discord(self, ctx: commands.Context):
         is_on_cooldown = self.cooldown_checker("discord")
         if is_on_cooldown:
-            await ctx.send(is_on_cooldown)
-        response_string = f"Join Discord: {DISCORD_URL}"
+            response_string = is_on_cooldown
+        else:
+            response_string = f"Join Discord: {DISCORD_URL}"
         await ctx.send(response_string)
 
     @commands.command(name="twitter")
     async def twitter(self, ctx: commands.Context):
         is_on_cooldown = self.cooldown_checker("twitter")
         if is_on_cooldown:
-            await ctx.send(is_on_cooldown)
-        response_string = f"My Twitter: {TWITTER_URL}"
+            response_string = is_on_cooldown
+        else:
+            response_string = f"My Twitter: {TWITTER_URL}"
         await ctx.send(response_string)
 
     @commands.command(name="youtube")
     async def youtube(self, ctx: commands.Context):
         is_on_cooldown = self.cooldown_checker("youtube")
         if is_on_cooldown:
-            await ctx.send(is_on_cooldown)
-        response_string = f"My YouTube: {YOUTUBE_URL}"
+            response_string = is_on_cooldown
+        else:
+            response_string = f"My YouTube: {YOUTUBE_URL}"
         await ctx.send(response_string)
 
     @commands.command(name="trusted")
@@ -113,15 +122,20 @@ class Bot(commands.Bot):
         if ctx.author.is_broadcaster or ctx.author.is_mod:
             message = str(ctx.message.content)
             if len(message.split(" ")) == 1:
-                await ctx.send("Please tag a person.")
+                response_string = "Please tag a person."
             else:
-                tagged_user = message.split(' ', 1)[1]
-                git_file = repository.get_contents("/trusted.txt")
-                with open('trusted.txt', 'a', encoding='utf-8') as local_file:
-                    local_file.write("\n" + tagged_user)
-                    repository.update_file("/trusted.txt", "Automated bot update", local_file.read(), git_file.sha)
-                # with open("trusted.txt", "r") as local_file:
-                #     repository.update_file("/trusted.txt", "Automated bot update", local_file.read(), git_file.sha)
+                tagged_user = message.split(' ', 1)[1].strip("@")
+                if tagged_user in self.trusted_members:
+                    response_string = f"{tagged_user} is already trusted! Or are they? * Vsauce music *"
+                else:
+                    git_file = repository.get_contents("trusted.txt")
+                    with open('trusted.txt', 'a+', encoding='utf-8') as local_file:
+                        local_file.write("\n" + tagged_user)
+                        local_file.seek(0)
+                        new_content = local_file.read()
+                        repository.update_file("trusted.txt", "Automated bot update", new_content, git_file.sha)
+                        response_string = f"{tagged_user} is now trusted. You are now invited to next JawahCon!"
+            await ctx.send(response_string)
 
     @commands.command(name="title")
     async def title(self, ctx: commands.Context):
