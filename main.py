@@ -6,6 +6,7 @@ import time
 import requests
 from dotenv import load_dotenv
 from twitchio.ext import commands
+from github import Github
 
 load_dotenv('.env')
 AUTH_TOKEN = os.environ['TMI_TOKEN']
@@ -21,6 +22,9 @@ DISCORD_URL = "https://discord.com/invite/h3yWGf3"
 TWITTER_URL = "https://twitter.com/JawahTV"
 YOUTUBE_URL = "https://www.youtube.com/channel/UC0Uui0gxffT5p8HTqUp1e1g"
 COMMAND_TIME_COOLDOWN = 5
+
+github = Github(os.environ["GIT_TOKEN"])
+repository = github.get_user().get_repo('minijawah')
 
 
 class Bot(commands.Bot):
@@ -103,6 +107,21 @@ class Bot(commands.Bot):
             await ctx.send(is_on_cooldown)
         response_string = f"My YouTube: {YOUTUBE_URL}"
         await ctx.send(response_string)
+
+    @commands.command(name="trusted")
+    async def trusted(self, ctx: commands.Context):
+        if ctx.author.is_broadcaster or ctx.author.is_mod:
+            message = str(ctx.message.content)
+            if len(message.split(" ")) == 1:
+                await ctx.send("Please tag a person.")
+            else:
+                tagged_user = message.split(' ', 1)[1]
+                git_file = repository.get_contents("/trusted.txt")
+                with open('trusted.txt', 'a', encoding='utf-8') as local_file:
+                    local_file.write("\n" + tagged_user)
+                    repository.update_file("/trusted.txt", "Automated bot update", local_file.read(), git_file.sha)
+                # with open("trusted.txt", "r") as local_file:
+                #     repository.update_file("/trusted.txt", "Automated bot update", local_file.read(), git_file.sha)
 
     @commands.command(name="title")
     async def title(self, ctx: commands.Context):
