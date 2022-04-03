@@ -22,9 +22,11 @@ DISCORD_URL = "https://discord.com/invite/h3yWGf3"
 TWITTER_URL = "https://twitter.com/JawahTV"
 YOUTUBE_URL = "https://www.youtube.com/channel/UC0Uui0gxffT5p8HTqUp1e1g"
 COMMAND_TIME_COOLDOWN = 5
+GIT_ID = os.environ["GIT_ID"]
+GIT_TOKEN = os.environ["GIT_TOKEN"]
 
-github = Github(os.environ["GIT_TOKEN"].strip())
-repository = github.get_user().get_repo('minijawah')
+github = Github(GIT_ID, GIT_TOKEN)
+repository = github.get_user(GIT_ID).get_repo('minijawah')
 
 
 class Bot(commands.Bot):
