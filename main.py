@@ -14,6 +14,7 @@ BOT_CLIENT_ID = os.environ['CLIENT_ID']
 CLIENT_ID = "9ggr8vllhbakby13wq85giayqykkfx"
 CLIENT_SECRET = "edq9plpecwlny3d0095i8lgliz5f8u"
 JAWAH_AUTH_TOKEN = os.environ['JAWAH_AUTH_TOKEN']
+JAWAH_BROADCASTER_ID = os.environ['JAWAH_BROADCASTER_ID']
 nick = os.environ['BOT_NICK']
 prefix = os.environ['BOT_PREFIX']
 initial_channels = os.environ['CHANNEL'].split(",")
@@ -126,7 +127,7 @@ class Bot(commands.Bot):
             if len(message.split(" ")) == 1:
                 response_string = "Please tag a person."
             else:
-                tagged_user = message.split(' ', 1)[1].strip("@")
+                tagged_user = message.split(' ', 1)[1].strip("@").lower()
                 if tagged_user in self.trusted_members:
                     response_string = f"{tagged_user} is already trusted! Or are they? * Vsauce music *"
                 else:
@@ -148,15 +149,15 @@ class Bot(commands.Bot):
             else:
                 title = message.split(' ', 1)[1]
                 channel_id = ctx.channel.name
-                url = 'https://api.twitch.tv/helix/channels?broadcaster_id=' + channel_id
+                url = 'https://api.twitch.tv/helix/channels?broadcaster_id=' + JAWAH_BROADCASTER_ID
                 headers = {
-                    'Authorization': JAWAH_AUTH_TOKEN,
+                    'Authorization': "Bearer " + JAWAH_AUTH_TOKEN,
                     'Client-Id': CLIENT_ID,
                     'Content-Type': 'application/json'
                 }
                 data = f'{{"title":"{title}"}}'
-                response = requests.put(url=url, headers=headers, data=data.encode('utf-8')).json()
-                if response.status_code == 200:
+                response = requests.patch(url=url, headers=headers, data=data.encode('utf-8'))
+                if response.status_code == 204:
                     await ctx.send(f'Title successfully changed to -> "{title}"')
 
 # TODO: Add game change command ?game
