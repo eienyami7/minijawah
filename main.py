@@ -10,11 +10,11 @@ from github import Github
 
 load_dotenv('.env')
 AUTH_TOKEN = os.environ['TMI_TOKEN']
-BOT_CLIENT_ID = os.environ['CLIENT_ID']
 CLIENT_ID = "9ggr8vllhbakby13wq85giayqykkfx"
 CLIENT_SECRET = "edq9plpecwlny3d0095i8lgliz5f8u"
 JAWAH_AUTH_TOKEN = os.environ['JAWAH_AUTH_TOKEN']
 JAWAH_BROADCASTER_ID = os.environ['JAWAH_BROADCASTER_ID']
+JAWAH_REFRESH_TOKEN = os.environ["JAWAH_REFRESH_TOKEN"]
 nick = os.environ['BOT_NICK']
 prefix = os.environ['BOT_PREFIX']
 initial_channels = os.environ['CHANNEL'].split(",")
@@ -143,6 +143,7 @@ class Bot(commands.Bot):
     @commands.command(name="title")
     async def title(self, ctx: commands.Context):
         if ctx.author.is_broadcaster or ctx.author.is_mod:
+            global JAWAH_AUTH_TOKEN
             message = str(ctx.message.content)
             if len(message.split(" ")) == 1:
                 await ctx.send("Please enter a title")
@@ -159,6 +160,17 @@ class Bot(commands.Bot):
                 response = requests.patch(url=url, headers=headers, data=data.encode('utf-8'))
                 if response.status_code == 204:
                     await ctx.send(f'Title successfully changed to -> "{title}"')
+                elif response.status_code == 401:
+                    response = requests.post("https://id.twitch.tv/oauth2/token?grant_type=refresh_token"
+                                             f"&refresh_token={JAWAH_REFRESH_TOKEN}"
+                                             f"&client_id={CLIENT_ID}"
+                                             f"&client_secret={CLIENT_SECRET}")
+                    if response.status_code == 200:
+                        JAWAH_AUTH_TOKEN = response.json()["access_token"]
+                        response = requests.patch(url=url, headers=headers, data=data.encode('utf-8'))
+                        if response.status_code == 204:
+                            await ctx.send(f'Title successfully changed to -> "{title}"')
+
 
 # TODO: Add game change command ?game
 
