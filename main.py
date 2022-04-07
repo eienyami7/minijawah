@@ -3,19 +3,18 @@ import os
 import random
 import time
 
+import dotenv
+import dropbox
 import requests
-from dotenv import load_dotenv
 from twitchio.ext import commands
-from github import Github
 
-load_dotenv('.env')
+dotenv.load_dotenv('.env')
 AUTH_TOKEN = os.environ['TMI_TOKEN']
-CLIENT_ID = "9ggr8vllhbakby13wq85giayqykkfx"
-CLIENT_SECRET = "edq9plpecwlny3d0095i8lgliz5f8u"
+CLIENT_ID = os.environ['CLIENT_ID']
+CLIENT_SECRET = os.environ['CLIENT_SECRET']
 JAWAH_AUTH_TOKEN = os.environ['JAWAH_AUTH_TOKEN']
 JAWAH_BROADCASTER_ID = os.environ['JAWAH_BROADCASTER_ID']
 JAWAH_REFRESH_TOKEN = os.environ["JAWAH_REFRESH_TOKEN"]
-nick = os.environ['BOT_NICK']
 prefix = os.environ['BOT_PREFIX']
 initial_channels = os.environ['CHANNEL'].split(",")
 API_URL = "https://api.twitch.tv/kraken/channels/"
@@ -23,22 +22,19 @@ DISCORD_URL = "https://discord.com/invite/h3yWGf3"
 TWITTER_URL = "https://twitter.com/JawahTV"
 YOUTUBE_URL = "https://www.youtube.com/channel/UC0Uui0gxffT5p8HTqUp1e1g"
 COMMAND_TIME_COOLDOWN = 5
-GIT_ID = os.environ["GIT_ID"]
-GIT_TOKEN = os.environ["GIT_TOKEN"]
 
-github = Github(GIT_ID, GIT_TOKEN)
-repository = github.get_user(GIT_ID).get_repo('minijawah')
+dbx = dropbox.Dropbox(os.environ["DROPBOX_TOKEN"])
+overwrite = dropbox.files.WriteMode.overwrite
 
 
 class Bot(commands.Bot):
     def __init__(self):
         super().__init__(token=AUTH_TOKEN, prefix=prefix, initial_channels=initial_channels)
         self.last_invocation_time = dict()
-        with open('trusted.txt', 'r', encoding='utf-8') as f:
-            self.trusted_members = f.read().split("\n")
+        md, res = dbx.files_download("/minijawah/trusted.txt")
+        self.trusted_members = res.content.decode("utf-8").split("\n")
 
     async def event_ready(self):
-        print(f'Logged in as | {self.nick}')
         print(f'User id is | {self.user_id}')
 
     async def event_message(self, message):
@@ -131,13 +127,28 @@ class Bot(commands.Bot):
                 if tagged_user in self.trusted_members:
                     response_string = f"{tagged_user} is already trusted! Or are they? * Vsauce music *"
                 else:
-                    git_file = repository.get_contents("trusted.txt")
-                    with open('trusted.txt', 'a+', encoding='utf-8') as local_file:
-                        local_file.write("\n" + tagged_user)
-                        local_file.seek(0)
-                        new_content = local_file.read()
-                        repository.update_file("trusted.txt", "Automated bot update", new_content, git_file.sha)
-                        response_string = f"{tagged_user} is now trusted. You are now invited to next JawahCon!"
+                    md, res = dbx.files_download("/minijawah/trusted.txt")
+                    new_content = res.content + bytes("\n" + tagged_user, "utf-8")
+                    dbx.files_upload(new_content, "/minijawah/trusted.txt", mode=overwrite)
+                    self.trusted_members.append(tagged_user)
+                    response_string = f"{tagged_user} is now trusted. You are now invited to next JawahCon!"
+            await ctx.send(response_string)
+
+    @commands.command(name="untrusted")
+    async def untrusted(self, ctx: commands.Context):
+        if ctx.author.is_broadcaster or ctx.author.is_mod:
+            message = str(ctx.message.content)
+            if len(message.split(" ")) == 1:
+                response_string = "Please tag a person."
+            else:
+                tagged_user = message.split(' ', 1)[1].strip("@").lower()
+                if tagged_user not in self.trusted_members:
+                    response_string = f"{tagged_user} were never trusted! They are quite sus."
+                else:
+                    self.trusted_members.remove(tagged_user)
+                    updated_content = "\n".join(self.trusted_members)
+                    dbx.files_upload(bytes(updated_content, "utf-8"), "/minijawah/trusted.txt", mode=overwrite)
+                    response_string = f"{tagged_user} is not trusted anymore."
             await ctx.send(response_string)
 
     @commands.command(name="title")
@@ -149,7 +160,6 @@ class Bot(commands.Bot):
                 await ctx.send("Please enter a title")
             else:
                 title = message.split(' ', 1)[1]
-                channel_id = ctx.channel.name
                 url = 'https://api.twitch.tv/helix/channels?broadcaster_id=' + JAWAH_BROADCASTER_ID
                 headers = {
                     'Authorization': "Bearer " + JAWAH_AUTH_TOKEN,
@@ -167,6 +177,7 @@ class Bot(commands.Bot):
                                              f"&client_secret={CLIENT_SECRET}")
                     if response.status_code == 200:
                         JAWAH_AUTH_TOKEN = response.json()["access_token"]
+                        dotenv.set_key(".env", "JAWAH_AUTH_TOKEN", JAWAH_AUTH_TOKEN)
                         response = requests.patch(url=url, headers=headers, data=data.encode('utf-8'))
                         if response.status_code == 204:
                             await ctx.send(f'Title successfully changed to -> "{title}"')
