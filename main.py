@@ -23,7 +23,11 @@ TWITTER_URL = "https://twitter.com/JawahTV"
 YOUTUBE_URL = "https://www.youtube.com/channel/UC0Uui0gxffT5p8HTqUp1e1g"
 COMMAND_TIME_COOLDOWN = 5
 
-dbx = dropbox.Dropbox(os.environ["DROPBOX_TOKEN"])
+dbx = dropbox.Dropbox(oauth2_access_token=os.environ["DROPBOX_TOKEN"],
+                      oauth2_refresh_token=os.environ["DROPBOX_REFRESH_TOKEN"],
+                      app_key=os.environ["DROPBOX_KEY"],
+                      app_secret=os.environ["DROPBOX_SECRET"])
+dbx.refresh_access_token()
 overwrite = dropbox.files.WriteMode.overwrite
 
 
@@ -44,13 +48,13 @@ class Bot(commands.Bot):
         # print(message.content)
         await self.handle_commands(message)
 
-    def cooldown_checker(self, input_command):
+    def cooldown_checker(self, input_command, input_cooldown=COMMAND_TIME_COOLDOWN):
         if input_command not in self.last_invocation_time:
             self.last_invocation_time[input_command] = time.time()
         else:
             time_diff = time.time() - self.last_invocation_time[input_command]
-            if time_diff < COMMAND_TIME_COOLDOWN:
-                return f"Please wait for {math.ceil(COMMAND_TIME_COOLDOWN - time_diff)} second(s) " \
+            if time_diff < input_cooldown:
+                return f"Please wait for {math.ceil(input_cooldown - time_diff)} second(s) " \
                        f"before using the command again."
         self.last_invocation_time[input_command] = time.time()
         return False
@@ -147,13 +151,20 @@ class Bot(commands.Bot):
                 else:
                     self.trusted_members.remove(tagged_user)
                     updated_content = "\n".join(self.trusted_members)
-                    dbx.files_upload(bytes(updated_content, "utf-8"), "/minijawah/trusted.txt", mode=overwrite)
+                    try:
+                        dbx.files_upload(bytes(updated_content, "utf-8"), "/minijawah/trusted.txt", mode=overwrite)
+                    except dropbox.exceptions.AuthError:
+                        dbx.check_and_refresh_access_token()
+                        dbx.files_upload(bytes(updated_content, "utf-8"), "/minijawah/trusted.txt", mode=overwrite)
                     response_string = f"{tagged_user} is not trusted anymore."
             await ctx.send(response_string)
 
     @commands.command(name="title")
     async def title(self, ctx: commands.Context):
         if ctx.author.is_broadcaster or ctx.author.is_mod:
+            is_on_cooldown = self.cooldown_checker("title", 30)
+            if is_on_cooldown:
+                await ctx.send(is_on_cooldown)
             global JAWAH_AUTH_TOKEN
             message = str(ctx.message.content)
             if len(message.split(" ")) == 1:
@@ -182,8 +193,43 @@ class Bot(commands.Bot):
                         if response.status_code == 204:
                             await ctx.send(f'Title successfully changed to -> "{title}"')
 
+    @commands.command(name="game")
+    async def game(self, ctx: commands.Context):
+        if ctx.author.is_broadcaster or ctx.author.is_mod:
+            global JAWAH_AUTH_TOKEN
+            message = str(ctx.message.content)
+            if len(message.split(" ")) == 1:
+                await ctx.send("Please enter a game")
+            else:
+                game = message.split(' ', 1)[1]
+                url = 'https://api.twitch.tv/helix/games?name=' + game
+                headers = {
+                    'Authorization': "Bearer " + JAWAH_AUTH_TOKEN,
+                    'Client-Id': CLIENT_ID
+                }
+                response = requests.get(url=url, headers=headers).json()
+                game_id = response["data"][0]["id"]
+                game_name = response["data"][0]["name"]
 
-# TODO: Add game change command ?game
+                url = 'https://api.twitch.tv/helix/channels?broadcaster_id=' + JAWAH_BROADCASTER_ID
+                headers = {
+                    'Authorization': "Bearer " + JAWAH_AUTH_TOKEN,
+                    'Client-Id': CLIENT_ID,
+                    'Content-Type': 'application/json'
+                }
+                data = f'{{"game_id":"{game_id}"}}'
+                response = requests.patch(url=url, headers=headers, data=data.encode('utf-8'))
+                if response.status_code == 204:
+                    await ctx.send(f'Category changed to -> "{game_name}"')
+                elif response.status_code == 401:
+                    response = requests.post("https://id.twitch.tv/oauth2/token?grant_type=refresh_token"
+                                             f"&refresh_token={JAWAH_REFRESH_TOKEN}"
+                                             f"&client_id={CLIENT_ID}"
+                                             f"&client_secret={CLIENT_SECRET}")
+                    if response.status_code == 200:
+                        JAWAH_AUTH_TOKEN = response.json()["access_token"]
+                        dotenv.set_key(".env", "JAWAH_AUTH_TOKEN", JAWAH_AUTH_TOKEN)
+                        await ctx.send("Please enter same command again")
 
 
 if __name__ == "__main__":
