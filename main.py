@@ -161,7 +161,7 @@ class Bot(commands.Bot):
 
     @commands.command(name="title")
     async def title(self, ctx: commands.Context):
-        if ctx.author.is_broadcaster or ctx.author.is_mod:
+        if ctx.author.name in self.trusted_members:
             is_on_cooldown = self.cooldown_checker("title", 30)
             if is_on_cooldown:
                 await ctx.send(is_on_cooldown)
@@ -207,7 +207,18 @@ class Bot(commands.Bot):
                     'Authorization': "Bearer " + JAWAH_AUTH_TOKEN,
                     'Client-Id': CLIENT_ID
                 }
-                response = requests.get(url=url, headers=headers).json()
+                response = requests.get(url=url, headers=headers)
+                if response.status_code == 401:
+                    response = requests.post("https://id.twitch.tv/oauth2/token?grant_type=refresh_token"
+                                             f"&refresh_token={JAWAH_REFRESH_TOKEN}"
+                                             f"&client_id={CLIENT_ID}"
+                                             f"&client_secret={CLIENT_SECRET}")
+                    if response.status_code == 200:
+                        JAWAH_AUTH_TOKEN = response.json()["access_token"]
+                        dotenv.set_key(".env", "JAWAH_AUTH_TOKEN", JAWAH_AUTH_TOKEN)
+                        response = requests.get(url=url, headers=headers)
+
+                response = response.json()
                 game_id = response["data"][0]["id"]
                 game_name = response["data"][0]["name"]
 
@@ -221,15 +232,6 @@ class Bot(commands.Bot):
                 response = requests.patch(url=url, headers=headers, data=data.encode('utf-8'))
                 if response.status_code == 204:
                     await ctx.send(f'Category changed to -> "{game_name}"')
-                elif response.status_code == 401:
-                    response = requests.post("https://id.twitch.tv/oauth2/token?grant_type=refresh_token"
-                                             f"&refresh_token={JAWAH_REFRESH_TOKEN}"
-                                             f"&client_id={CLIENT_ID}"
-                                             f"&client_secret={CLIENT_SECRET}")
-                    if response.status_code == 200:
-                        JAWAH_AUTH_TOKEN = response.json()["access_token"]
-                        dotenv.set_key(".env", "JAWAH_AUTH_TOKEN", JAWAH_AUTH_TOKEN)
-                        await ctx.send("Please enter same command again")
 
 
 if __name__ == "__main__":
