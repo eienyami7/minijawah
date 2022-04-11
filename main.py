@@ -2,6 +2,7 @@ import math
 import os
 import random
 import time
+import re
 
 import dotenv
 import dropbox
@@ -45,7 +46,21 @@ class Bot(commands.Bot):
         if message.echo:
             return
 
-        # print(message.content)
+        if re.match(r"[Ç38O@Cc]*[=\-]+[DoO08B]", message.content):
+            message_id = message.tags['id']
+            await message.channel.send(f"/delete {message_id}")
+            await message.channel.send(f"Don't be a dick {message.author.name}")
+
+        if re.match(r"[⣿⣹⣻⣾⡿⠋⠄⠛⣤⡄⢸⣇⠶⠾⠇⢻⣷⠈⡟⡇⡾⠃⣴⠓⣠⢠⠿⠻⠸⢀⣀⠁⢿⣦⣄⠙⠉⢺⣼⢘⠔⠒⡀⡈⢉⣶⠟⡒⢚⣸⡵⣆⣟⡆⣏⢁⠩⠝⣯⢋⣧⢰]"
+                    r"{3, }", message.content):
+            message_id = message.tags['id']
+            await message.channel.send(f"/delete {message_id}")
+            await message.channel.send(f"Try joining art school {message.author.name}")
+
+        if re.match(r"[\\\-_/?,=|();:]{3,}", message.content):
+            message_id = message.tags['id']
+            await message.channel.send(f"/delete {message_id}")
+            await message.channel.send(f"These are not the signs I was looking for {message.author.name}")
         await self.handle_commands(message)
 
     def cooldown_checker(self, input_command, input_cooldown=COMMAND_TIME_COOLDOWN):
