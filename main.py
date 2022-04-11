@@ -177,7 +177,7 @@ class Bot(commands.Bot):
     @commands.command(name="title")
     async def title(self, ctx: commands.Context):
         if ctx.author.name in self.trusted_members:
-            is_on_cooldown = self.cooldown_checker("title", 30)
+            is_on_cooldown = self.cooldown_checker("title", 150)
             if is_on_cooldown:
                 await ctx.send(is_on_cooldown)
             global JAWAH_AUTH_TOKEN
