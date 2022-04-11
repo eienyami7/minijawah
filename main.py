@@ -46,7 +46,7 @@ class Bot(commands.Bot):
         if message.echo:
             return
 
-        if re.match(r"[Ç38O@Cc]*[=\-]+[DoO08B]", message.content):
+        if re.match(r"[Ç38O@Cc€QG]*[=\-]+[DoO08B]", message.content):
             message_id = message.tags['id']
             await message.channel.send(f"/delete {message_id}")
             await message.channel.send(f"Don't be a dick {message.author.name}")
@@ -57,7 +57,7 @@ class Bot(commands.Bot):
             await message.channel.send(f"/delete {message_id}")
             await message.channel.send(f"Try joining art school {message.author.name}")
 
-        if re.match(r"[\\\-_/?,=|();:]{3,}", message.content):
+        if re.match(r"[\\\-_/?,=|();:]{10,}", message.content):
             message_id = message.tags['id']
             await message.channel.send(f"/delete {message_id}")
             await message.channel.send(f"These are not the signs I was looking for {message.author.name}")
@@ -102,10 +102,13 @@ class Bot(commands.Bot):
                 if len(message.split(" ")) == 1:
                     response_string = "Go to bed Roger!"
                 else:
-                    if randomizer == 5:
+                    tagged_person = message.split(' ', 1)[1]
+                    if "minjawah" in tagged_person.lower():
+                        response_string = "How about I put you to bed and tuck you in @" + ctx.author.name
+                    elif randomizer == 5:
                         response_string = "How about you go to bed @" + ctx.author.name
                     else:
-                        response_string = "Go to bed " + message.split(' ', 1)[1]
+                        response_string = "Go to bed " + tagged_person
                 await ctx.send(response_string)
 
     @commands.command(name="discord")
