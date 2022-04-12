@@ -46,6 +46,15 @@ class Bot(commands.Bot):
         if message.echo:
             return
 
+        if re.match(r"^first\[ ]*$", message.content):
+            if "charvuhs" in message.author.name:
+                randomizer = random.randint(1, 2)
+                if randomizer == 1:
+                    response_string = f"Are you though {message.author.name}?"
+                elif randomizer == 2:
+                    response_string = f"No you are not {message.author.name}"
+                await message.channel.send(response_string)
+
         if re.match(r"[Ç38O@Cc€QG]*[=\-]+[DoO08B]", message.content):
             message_id = message.tags['id']
             await message.channel.send(f"/delete {message_id}")
