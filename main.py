@@ -192,33 +192,34 @@ class Bot(commands.Bot):
             is_on_cooldown = self.cooldown_checker("title", 150)
             if is_on_cooldown:
                 await ctx.send(is_on_cooldown)
-            global JAWAH_AUTH_TOKEN
-            message = str(ctx.message.content)
-            if len(message.split(" ")) == 1:
-                await ctx.send("Please enter a title")
             else:
-                title = message.split(' ', 1)[1]
-                url = 'https://api.twitch.tv/helix/channels?broadcaster_id=' + JAWAH_BROADCASTER_ID
-                headers = {
-                    'Authorization': "Bearer " + JAWAH_AUTH_TOKEN,
-                    'Client-Id': CLIENT_ID,
-                    'Content-Type': 'application/json'
-                }
-                data = f'{{"title":"{title}"}}'
-                response = requests.patch(url=url, headers=headers, data=data.encode('utf-8'))
-                if response.status_code == 204:
-                    await ctx.send(f'Title successfully changed to -> "{title}"')
-                elif response.status_code == 401:
-                    response = requests.post("https://id.twitch.tv/oauth2/token?grant_type=refresh_token"
-                                             f"&refresh_token={JAWAH_REFRESH_TOKEN}"
-                                             f"&client_id={CLIENT_ID}"
-                                             f"&client_secret={CLIENT_SECRET}")
-                    if response.status_code == 200:
-                        JAWAH_AUTH_TOKEN = response.json()["access_token"]
-                        dotenv.set_key(".env", "JAWAH_AUTH_TOKEN", JAWAH_AUTH_TOKEN)
-                        response = requests.patch(url=url, headers=headers, data=data.encode('utf-8'))
-                        if response.status_code == 204:
-                            await ctx.send(f'Title successfully changed to -> "{title}"')
+                global JAWAH_AUTH_TOKEN
+                message = str(ctx.message.content)
+                if len(message.split(" ")) == 1:
+                    await ctx.send("Please enter a title")
+                else:
+                    title = message.split(' ', 1)[1]
+                    url = 'https://api.twitch.tv/helix/channels?broadcaster_id=' + JAWAH_BROADCASTER_ID
+                    headers = {
+                        'Authorization': "Bearer " + JAWAH_AUTH_TOKEN,
+                        'Client-Id': CLIENT_ID,
+                        'Content-Type': 'application/json'
+                    }
+                    data = f'{{"title":"{title}"}}'
+                    response = requests.patch(url=url, headers=headers, data=data.encode('utf-8'))
+                    if response.status_code == 204:
+                        await ctx.send(f'Title successfully changed to -> "{title}"')
+                    elif response.status_code == 401:
+                        response = requests.post("https://id.twitch.tv/oauth2/token?grant_type=refresh_token"
+                                                 f"&refresh_token={JAWAH_REFRESH_TOKEN}"
+                                                 f"&client_id={CLIENT_ID}"
+                                                 f"&client_secret={CLIENT_SECRET}")
+                        if response.status_code == 200:
+                            JAWAH_AUTH_TOKEN = response.json()["access_token"]
+                            dotenv.set_key(".env", "JAWAH_AUTH_TOKEN", JAWAH_AUTH_TOKEN)
+                            response = requests.patch(url=url, headers=headers, data=data.encode('utf-8'))
+                            if response.status_code == 204:
+                                await ctx.send(f'Title successfully changed to -> "{title}"')
 
     @commands.command(name="game")
     async def game(self, ctx: commands.Context):
