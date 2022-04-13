@@ -46,7 +46,10 @@ class Bot(commands.Bot):
         if message.echo:
             return
 
-        if re.match(r"^first\[ ]*$", message.content):
+        if re.match(r"^hello there[.!]*$", message.content.lower()):
+            await message.channel.send("General Kenobi!")
+
+        if re.match(r"^first[ !.]*$", message.content.lower()):
             if "charvuhs" in message.author.name:
                 randomizer = random.randint(1, 2)
                 if randomizer == 1:
@@ -112,7 +115,7 @@ class Bot(commands.Bot):
                     response_string = "Go to bed Roger!"
                 else:
                     tagged_person = message.split(' ', 1)[1]
-                    if "minjawah" in tagged_person.lower():
+                    if "minijawah" in tagged_person.lower():
                         response_string = "How about I put you to bed and tuck you in @" + ctx.author.name
                     elif randomizer == 5:
                         response_string = "How about you go to bed @" + ctx.author.name
