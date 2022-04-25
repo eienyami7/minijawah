@@ -38,6 +38,7 @@ class Bot(commands.Bot):
         self.last_invocation_time = dict()
         md, res = dbx.files_download("/minijawah/trusted.txt")
         self.trusted_members = res.content.decode("utf-8").split("\n")
+        self.stream_queue = list()
 
     async def event_ready(self):
         print(f'User id is | {self.user_id}')
@@ -50,13 +51,12 @@ class Bot(commands.Bot):
             await message.channel.send("General Kenobi!")
 
         if re.match(r"^first[ !.]*$", message.content.lower()):
-            if "charvuhs" in message.author.name:
-                randomizer = random.randint(1, 2)
-                if randomizer == 1:
-                    response_string = f"Are you though {message.author.name}?"
-                elif randomizer == 2:
-                    response_string = f"No you are not {message.author.name}"
-                await message.channel.send(response_string)
+            randomizer = random.randint(1, 2)
+            if randomizer == 1:
+                response_string = f"Are you though {message.author.name}?"
+            else:
+                response_string = f"No you are not {message.author.name}"
+            await message.channel.send(response_string)
 
         if re.match(r"[Ç38O@Cc€QG]*[=\-]+[DoO08B]", message.content):
             message_id = message.tags['id']
@@ -86,6 +86,18 @@ class Bot(commands.Bot):
         self.last_invocation_time[input_command] = time.time()
         return False
 
+    def refresh_token(self):
+        print("refreshing token")
+        global JAWAH_AUTH_TOKEN
+        response = requests.post("https://id.twitch.tv/oauth2/token?grant_type=refresh_token"
+                                 f"&refresh_token={JAWAH_REFRESH_TOKEN}"
+                                 f"&client_id={CLIENT_ID}"
+                                 f"&client_secret={CLIENT_SECRET}")
+        if response.status_code == 200:
+            JAWAH_AUTH_TOKEN = response.json()["access_token"]
+            dotenv.set_key(".env", "JAWAH_AUTH_TOKEN", JAWAH_AUTH_TOKEN)
+            return True
+
     @commands.command(name="lookjake")
     async def lookjake(self, ctx: commands.Context):
         if ctx.author.name in self.trusted_members:
@@ -94,12 +106,12 @@ class Bot(commands.Bot):
                 response_string = is_on_cooldown
             else:
                 randomizer = random.randint(1, 5)
-                if randomizer == 5:
-                    response_string = "Shut up @" + ctx.author.name
-                elif randomizer % 2 == 0:
+                if randomizer % 2 == 0:
                     response_string = 'It is Luna but with pirate hat!'
                 elif randomizer % 2 == 1:
                     response_string = 'IODabs'
+                else:
+                    response_string = "Shut up @" + ctx.author.name
             await ctx.send(response_string)
 
     @commands.command(name="bed")
@@ -122,6 +134,55 @@ class Bot(commands.Bot):
                     else:
                         response_string = "Go to bed " + tagged_person
                 await ctx.send(response_string)
+
+    @commands.command(name="randomize")
+    async def randomize(self, ctx: commands.Context):
+        if ctx.author.name in self.trusted_members:
+            message = str(ctx.message.content)
+            if len(message.split(" ")) == 1:
+                response_string = "No names provided"
+            else:
+                name_list = message.split(' ')[1:]
+                if len(name_list) == 5:
+                    random.shuffle(name_list)
+                    response_string = f"Killer:{name_list[0]}, survivors:{', '.join(name_list[1:])}"
+                else:
+                    response_string = "Please enter only 5 names"
+            await ctx.send(response_string)
+
+    @commands.command(name="queue")
+    async def queue(self, ctx: commands.Context):
+        if ctx.author.name in self.trusted_members:
+            message = str(ctx.message.content)
+            if len(message.split(" ")) == 1:
+                response_string = f"Current Queue: {', '.join(self.stream_queue)}"
+            else:
+                objects = message.split(' ')[1:]
+                self.stream_queue.extend(objects)
+                response_string = f"Current Queue: {', '.join(self.stream_queue)}"
+            await ctx.send(response_string)
+
+    @commands.command(name="qpop")
+    async def qpop(self, ctx: commands.Context):
+        if ctx.author.name in self.trusted_members:
+            message = str(ctx.message.content)
+            if len(message.split(" ")) == 1:
+                response_string = f"{self.stream_queue.pop(0)} removed from queue"
+            else:
+                qobject = message.split(' ', 1)[1]
+                if qobject in self.stream_queue:
+                    self.stream_queue.remove(qobject)
+                    response_string = f"{qobject} removed from queue"
+                else:
+                    response_string = f"{qobject} not in queue"
+            await ctx.send(response_string)
+
+    @commands.command(name="qwipe")
+    async def qwipe(self, ctx: commands.Context):
+        if ctx.author.name in self.trusted_members:
+            self.stream_queue = list()
+            response_string = "Queue cleaned"
+            await ctx.send(response_string)
 
     @commands.command(name="discord")
     async def discord(self, ctx: commands.Context):
@@ -196,7 +257,6 @@ class Bot(commands.Bot):
             if is_on_cooldown:
                 await ctx.send(is_on_cooldown)
             else:
-                global JAWAH_AUTH_TOKEN
                 message = str(ctx.message.content)
                 if len(message.split(" ")) == 1:
                     await ctx.send("Please enter a title")
@@ -210,24 +270,20 @@ class Bot(commands.Bot):
                     }
                     data = f'{{"title":"{title}"}}'
                     response = requests.patch(url=url, headers=headers, data=data.encode('utf-8'))
+                    if response.status_code == 401:
+                        self.refresh_token()
+                        headers = {
+                            'Authorization': "Bearer " + JAWAH_AUTH_TOKEN,
+                            'Client-Id': CLIENT_ID,
+                            'Content-Type': 'application/json'
+                        }
+                        response = requests.patch(url=url, headers=headers, data=data.encode('utf-8'))
                     if response.status_code == 204:
                         await ctx.send(f'Title successfully changed to -> "{title}"')
-                    elif response.status_code == 401:
-                        response = requests.post("https://id.twitch.tv/oauth2/token?grant_type=refresh_token"
-                                                 f"&refresh_token={JAWAH_REFRESH_TOKEN}"
-                                                 f"&client_id={CLIENT_ID}"
-                                                 f"&client_secret={CLIENT_SECRET}")
-                        if response.status_code == 200:
-                            JAWAH_AUTH_TOKEN = response.json()["access_token"]
-                            dotenv.set_key(".env", "JAWAH_AUTH_TOKEN", JAWAH_AUTH_TOKEN)
-                            response = requests.patch(url=url, headers=headers, data=data.encode('utf-8'))
-                            if response.status_code == 204:
-                                await ctx.send(f'Title successfully changed to -> "{title}"')
 
     @commands.command(name="game")
     async def game(self, ctx: commands.Context):
         if ctx.author.is_broadcaster or ctx.author.is_mod:
-            global JAWAH_AUTH_TOKEN
             message = str(ctx.message.content)
             if len(message.split(" ")) == 1:
                 await ctx.send("Please enter a game")
@@ -240,14 +296,12 @@ class Bot(commands.Bot):
                 }
                 response = requests.get(url=url, headers=headers)
                 if response.status_code == 401:
-                    response = requests.post("https://id.twitch.tv/oauth2/token?grant_type=refresh_token"
-                                             f"&refresh_token={JAWAH_REFRESH_TOKEN}"
-                                             f"&client_id={CLIENT_ID}"
-                                             f"&client_secret={CLIENT_SECRET}")
-                    if response.status_code == 200:
-                        JAWAH_AUTH_TOKEN = response.json()["access_token"]
-                        dotenv.set_key(".env", "JAWAH_AUTH_TOKEN", JAWAH_AUTH_TOKEN)
-                        response = requests.get(url=url, headers=headers)
+                    self.refresh_token()
+                    headers = {
+                        'Authorization': "Bearer " + JAWAH_AUTH_TOKEN,
+                        'Client-Id': CLIENT_ID
+                    }
+                    response = requests.get(url=url, headers=headers)
 
                 response = response.json()
                 game_id = response["data"][0]["id"]
@@ -263,6 +317,34 @@ class Bot(commands.Bot):
                 response = requests.patch(url=url, headers=headers, data=data.encode('utf-8'))
                 if response.status_code == 204:
                     await ctx.send(f'Category changed to -> "{game_name}"')
+
+    @commands.command(name="marker")
+    async def marker(self, ctx: commands.Context):
+        if ctx.author.is_broadcaster or ctx.author.is_mod:
+            message = str(ctx.message.content)
+            if len(message.split(" ")) == 1:
+                await ctx.send("Please enter a game")
+            marker_description = message.split(' ', 1)[1]
+            url = 'https://api.twitch.tv/helix/streams/markers'
+            headers = {
+                'Authorization': 'Bearer ' + JAWAH_AUTH_TOKEN,
+                'Client-Id': CLIENT_ID,
+                'Content-Type': 'application/json',
+            }
+            data = f"{{'user_id': '{JAWAH_BROADCASTER_ID}', 'description': '{marker_description}'}}"
+            print(data)
+            response = requests.get(url=url, headers=headers, data=data.encode('utf-8'))
+            if response.status_code == 401:
+                self.refresh_token()
+                headers = {
+                    'Authorization': 'Bearer ' + JAWAH_AUTH_TOKEN,
+                    'Client-Id': CLIENT_ID,
+                    'Content-Type': 'application/json',
+                }
+                response = requests.get(url=url, headers=headers, data=data.encode('utf-8'))
+            print(response.json())
+            if response.status_code == 204:
+                await ctx.send("Marker Created!")
 
 
 if __name__ == "__main__":
